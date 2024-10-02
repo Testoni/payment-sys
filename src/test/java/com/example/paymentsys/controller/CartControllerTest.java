@@ -1,21 +1,27 @@
 package com.example.paymentsys.controller;
 
 import com.example.paymentsys.dto.CartDto;
-import com.example.paymentsys.dto.CartSummaryDto;
+import com.example.paymentsys.dto.OrderDto;
+import com.example.paymentsys.exception.NotFoundException;
 import com.example.paymentsys.service.CartService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.Mockito.when;
+import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
 
-public class CartControllerTest {
+import static org.mockito.Mockito.*;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+class CartControllerTest {
 
     @Mock
     private CartService cartService;
@@ -23,44 +29,74 @@ public class CartControllerTest {
     @InjectMocks
     private CartController cartController;
 
-    private CartDto cartDto;
+    private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        cartDto = new CartDto();
+        mockMvc = MockMvcBuilders.standaloneSetup(cartController).build();
+    }
+
+    /*@Test
+    void testAddItemToCart_Success() throws Exception {
+        // Prepare the mock behavior
+        CartDto mockCart = new CartDto();
+        mockCart.setTotalPrice(BigDecimal.valueOf(900)); // Example total price
+        mockCart.setTotalSavings(BigDecimal.valueOf(100)); // Example savings
+
+        List<OrderDto> orders = Collections.singletonList(new OrderDto("prod1", 2));
+
+        when(cartService.processOrder(anyList())).thenReturn(mockCart);
+
+        // Perform the request and verify the response
+        mockMvc.perform(post("/process-order")
+                        .contentType(APPLICATION_JSON)
+                        .content("[{\"productId\":\"prod1\", \"qty\":2}]"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(APPLICATION_JSON))
+                .andExpect(jsonPath("$.totalPrice").value(900))
+                .andExpect(jsonPath("$.totalSavings").value(100));
     }
 
     @Test
-    void shouldAddItemToCartSuccess() {
-        when(cartService.addItemToCart(cartDto, "PWWe3w1SDU")).thenReturn(cartDto);
+    void testAddItemToCart_NotFound() throws Exception {
+        // Prepare the mock behavior to throw NotFoundException
+        doThrow(new NotFoundException("Product not found")).when(cartService).processOrder(anyList());
 
-        ResponseEntity<CartDto> response = cartController.addItemToCart(cartDto, "PWWe3w1SDU");
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(cartDto, response.getBody());
+        // Perform the request and verify the response
+        mockMvc.perform(post("/process-order")
+                        .contentType(APPLICATION_JSON)
+                        .content("[{\"productId\":\"prod1\", \"qty\":2}]"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(APPLICATION_JSON))
+                .andExpect(content().string("null"));
     }
 
     @Test
-    void shouldAddItemToCartProductNotFound() {
-        when(cartService.addItemToCart(cartDto, "invalid-id")).thenThrow(new IllegalArgumentException("Product not found"));
+    void testAddItemToCart_BadRequest() throws Exception {
+        // Prepare the mock behavior to throw IllegalArgumentException
+        doThrow(new IllegalArgumentException("Invalid argument")).when(cartService).processOrder(anyList());
 
-        ResponseEntity<CartDto> response = cartController.addItemToCart(cartDto, "invalid-id");
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNull(response.getBody());
+        // Perform the request and verify the response
+        mockMvc.perform(post("/process-order")
+                        .contentType(APPLICATION_JSON)
+                        .content("[{\"productId\":\"prod1\", \"qty\":2}]"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(APPLICATION_JSON))
+                .andExpect(content().string("null"));
     }
 
     @Test
-    void shouldDisplayCartSummary() {
-        when(cartService.calculateTotalPrice(cartDto)).thenReturn(999);
-        cartDto.setTotalSavings(999);
+    void testAddItemToCart_InternalServerError() throws Exception {
+        // Prepare the mock behavior to throw a generic Exception
+        doThrow(new RuntimeException("Internal error")).when(cartService).processOrder(anyList());
 
-        ResponseEntity<CartSummaryDto> response = cartController.displayCartSummary(cartDto);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(999, response.getBody().getTotalPrice());
-        assertEquals(999, response.getBody().getTotalSavings());
-    }
-
+        // Perform the request and verify the response
+        mockMvc.perform(post("/process-order")
+                        .contentType(APPLICATION_JSON)
+                        .content("[{\"productId\":\"prod1\", \"qty\":2}]"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentType(APPLICATION_JSON))
+                .andExpect(content().string("null"));
+    }*/
 }

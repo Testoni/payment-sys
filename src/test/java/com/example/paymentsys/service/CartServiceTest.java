@@ -1,19 +1,24 @@
 package com.example.paymentsys.service;
 
 import com.example.paymentsys.dto.CartDto;
+import com.example.paymentsys.dto.OrderDto;
 import com.example.paymentsys.dto.ProductDto;
 import com.example.paymentsys.dto.PromotionDto;
 import com.example.paymentsys.enums.PromotionType;
+import com.example.paymentsys.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 public class CartServiceTest {
@@ -24,53 +29,98 @@ public class CartServiceTest {
     @InjectMocks
     private CartService cartService;
 
-    private CartDto cartDto;
-
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-        cartDto = new CartDto();
+        MockitoAnnotations.initMocks(this);
     }
 
     @Test
-    void shouldAddItemToCartProductExists() {
-        ProductDto product = new ProductDto("PWWe3w1SDU", "Amazing Burger!", 999, Arrays.asList());
-        when(productService.fetchProductById("PWWe3w1SDU")).thenReturn(product);
+    void shouldProcessOrderBuyXGetYFree() {
+        String productId = "prod123";
+        ProductDto product = new ProductDto();
+        product.setId(productId);
+        product.setPrice(100);
 
-        CartDto updatedCart = cartService.addItemToCart(cartDto, "PWWe3w1SDU");
+        PromotionDto promotion = new PromotionDto("promo1", PromotionType.BUY_X_GET_Y_FREE, 2, 1, 0);
+        product.setPromotions(Collections.singletonList(promotion));
 
-        assertEquals(1, updatedCart.getItems().size());
-        assertEquals(product, updatedCart.getItems().get(0));
+        when(productService.fetchProductById(productId)).thenReturn(product);
+
+        List<OrderDto> orders = new ArrayList<>();
+        orders.add(new OrderDto(productId, 6));
+
+        CartDto cart = cartService.processOrder(orders);
+
+        assertNotNull(cart);
+        assertEquals(BigDecimal.valueOf(400), cart.getTotalPrice());
+        assertEquals(BigDecimal.valueOf(200), cart.getTotalSavings());
     }
 
     @Test
-    void shouldAddItemToCartProductNotFound() {
-        when(productService.fetchProductById("invalid-id")).thenReturn(null);
+    void shouldProcessOrderQtyBasedPriceOverride() {
+        String productId = "prod456";
+        ProductDto product = new ProductDto();
+        product.setId(productId);
+        product.setPrice(100);
 
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-            cartService.addItemToCart(cartDto, "invalid-id");
-        });
+        PromotionDto promotion = new PromotionDto("promo2", PromotionType.QTY_BASED_PRICE_OVERRIDE, 3, 0, 250);
+        product.setPromotions(Collections.singletonList(promotion));
 
-        assertEquals("Product not found", exception.getMessage());
+        when(productService.fetchProductById(productId)).thenReturn(product);
+
+        List<OrderDto> orders = new ArrayList<>();
+        orders.add(new OrderDto(productId, 7));
+
+        CartDto cart = cartService.processOrder(orders);
+
+        assertNotNull(cart);
+        assertEquals(0, cart.getTotalPrice().compareTo(BigDecimal.valueOf(600)));
+        assertEquals(0, cart.getTotalSavings().compareTo(BigDecimal.valueOf(100)));
     }
 
     @Test
-    void shouldCalculateTotalPriceNoItems() {
-        int totalPrice = cartService.calculateTotalPrice(cartDto);
-        assertEquals(0, totalPrice);
-        assertEquals(0, cartDto.getTotalSavings());
+    void shouldProcessOrderFlatPercentDiscount() {
+        String productId = "prod789";
+        ProductDto product = new ProductDto();
+        product.setId(productId);
+        product.setPrice(200);
+
+        PromotionDto promotion = new PromotionDto("promo3", PromotionType.FLAT_PERCENT, 0, 0, 10);
+        product.setPromotions(Collections.singletonList(promotion));
+
+        when(productService.fetchProductById(productId)).thenReturn(product);
+
+        List<OrderDto> orders = new ArrayList<>();
+        orders.add(new OrderDto(productId, 5));
+
+        CartDto cart = cartService.processOrder(orders);
+
+        assertNotNull(cart);
+        assertEquals(0, cart.getTotalPrice().compareTo(BigDecimal.valueOf(900)));
+        assertEquals(0, cart.getTotalSavings().compareTo(BigDecimal.valueOf(100)));
     }
 
     @Test
-    void shouldCalculateTotalPriceWithPromotion() {
-        ProductDto product = new ProductDto("PWWe3w1SDU", "Amazing Burger!", 999,
-                Arrays.asList(new PromotionDto("ZRAwbsO2qM", PromotionType.BUY_X_GET_Y_FREE, 2, 1)));
+    void shouldProcessOrderProductNotFound() {
+        String productId = "prod999";
 
-        cartDto.setItems(Arrays.asList(product, product));
+        when(productService.fetchProductById(productId)).thenReturn(null);
 
-        int totalPrice = cartService.calculateTotalPrice(cartDto);
-        assertEquals(1998, totalPrice);
-        assertEquals(0, cartDto.getTotalSavings());
+        List<OrderDto> orders = new ArrayList<>();
+        orders.add(new OrderDto(productId, 1));
+
+        assertThrows(NotFoundException.class, () -> cartService.processOrder(orders));
+    }
+
+    @Test
+    void shouldProcessOrderEmptyOrder() {
+        List<OrderDto> orders = Collections.emptyList();
+
+        CartDto cart = cartService.processOrder(orders);
+
+        assertNotNull(cart);
+        assertEquals(BigDecimal.ZERO, cart.getTotalPrice());
+        assertEquals(BigDecimal.ZERO, cart.getTotalSavings());
     }
 
 }

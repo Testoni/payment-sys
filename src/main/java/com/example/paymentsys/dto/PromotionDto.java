@@ -11,4 +11,5 @@ public class PromotionDto {
     private PromotionType type;
     private int requiredQty;
     private int freeQty;
+    private double amount;
 }

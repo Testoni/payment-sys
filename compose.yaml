@@ -1,1 +1,19 @@
+version: '3.8'
+
 services:
+  payment-system:
+    build:
+      context: .
+      dockerfile: Dockerfile  # Path to your main Dockerfile
+    ports:
+      - "8080:8080"  # Map your app port
+
+  wiremock:
+    build:
+      context: .
+      dockerfile: docker/wiremock/Dockerfile  # Path to WireMock Dockerfile
+    ports:
+      - "8081:8081"  # Map WireMock port
+    volumes:
+      - ./docker/wiremock/mappings:/wiremock/mappings  # Optional: Mount mappings
+      - ./docker/wiremock/__files:/wiremock/__files  # Optional: Mount __files
